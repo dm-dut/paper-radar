@@ -6,7 +6,7 @@ import math
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import pandas as pd
@@ -56,6 +56,34 @@ def parse_keywords(text: str) -> List[Keyword]:
         if term:
             out.append(Keyword(term=term, weight=max(0.0, weight)))
     return out
+
+
+def profile_keywords(profile: dict) -> List[Keyword]:
+    """Flatten a structured research-interest profile into weighted keywords."""
+    out: List[Keyword] = []
+    seen: Dict[str, float] = {}
+    originals: Dict[str, str] = {}
+    for theme in profile.get("themes") or []:
+        theme_weight = float(theme.get("weight", 1.0) or 1.0)
+        for item in theme.get("keywords") or []:
+            if isinstance(item, str):
+                term, item_weight = item.strip(), 1.0
+            else:
+                term = str(item.get("term", "")).strip()
+                item_weight = float(item.get("weight", 1.0) or 1.0)
+            if not term:
+                continue
+            effective = theme_weight * item_weight
+            key = term.casefold()
+            seen[key] = max(seen.get(key, 0.0), effective)
+            originals.setdefault(key, term)
+    for key, weight in seen.items():
+        out.append(Keyword(term=originals[key], weight=weight))
+    return out
+
+
+def profile_keywords_text(profile: dict) -> str:
+    return "\n".join(f"{kw.term}|{kw.weight:.2f}" for kw in profile_keywords(profile))
 
 
 def _date_parts(item: dict) -> Optional[date]:
@@ -117,7 +145,7 @@ def fetch_crossref_journal(
     if mailto.strip():
         params["mailto"] = mailto.strip()
     headers = {
-        "User-Agent": "PaperRecommender/0.1 (scholarly metadata discovery; contact via configured mailto)"
+        "User-Agent": "PaperRecommender/0.2 (scholarly metadata discovery; contact via configured mailto)"
     }
     url = f"{CROSSREF_BASE}/journals/{quote(issn)}/works"
     r = requests.get(url, params=params, headers=headers, timeout=timeout)
@@ -199,7 +227,92 @@ def fetch_catalog(
 def _count_phrase(text: str, term: str) -> int:
     if not text or not term:
         return 0
+    if re.fullmatch(r"[\w\s]+", term, flags=re.UNICODE):
+        pattern = r"(?<!\w)" + re.escape(term) + r"(?!\w)"
+        return len(re.findall(pattern, text, flags=re.IGNORECASE))
     return text.casefold().count(term.casefold())
+
+
+def _profile_hits(title: str, abstract: str, profile: Optional[dict]) -> List[dict]:
+    if not profile:
+        return []
+    hits = []
+    for theme in profile.get("themes") or []:
+        theme_name = str(theme.get("name", "")).strip()
+        theme_weight = float(theme.get("weight", 1.0) or 1.0)
+        terms = []
+        score = 0.0
+        for item in theme.get("keywords") or []:
+            if isinstance(item, str):
+                term, item_weight = item.strip(), 1.0
+            else:
+                term = str(item.get("term", "")).strip()
+                item_weight = float(item.get("weight", 1.0) or 1.0)
+            if not term:
+                continue
+            tc = _count_phrase(title, term)
+            ac = _count_phrase(abstract, term)
+            if tc or ac:
+                contribution = theme_weight * item_weight * (3.0 * min(tc, 2) + min(ac, 4))
+                score += contribution
+                terms.append((term, contribution))
+        if terms:
+            terms = sorted(terms, key=lambda x: x[1], reverse=True)
+            hits.append(
+                {
+                    "name": theme_name,
+                    "score": score,
+                    "terms": [x[0] for x in terms],
+                    "description": str(theme.get("description", "")).strip(),
+                }
+            )
+    return sorted(hits, key=lambda x: x["score"], reverse=True)
+
+
+def _profile_reason(
+    title: str,
+    abstract: str,
+    profile: Optional[dict],
+    fallback_terms: List[str],
+    age: int,
+) -> Tuple[str, str]:
+    hits = _profile_hits(title, abstract, profile)
+    if hits:
+        primary = hits[0]
+        all_terms = []
+        for h in hits[:2]:
+            all_terms.extend(h["terms"])
+        deduped = []
+        seen = set()
+        for t in all_terms:
+            key = t.casefold()
+            if key not in seen:
+                deduped.append(t)
+                seen.add(key)
+        strength = "高度契合" if primary["score"] >= 12 or len(deduped) >= 3 else "较为契合"
+        reason = f"与你的“{primary['name']}”研究兴趣{strength}，主要命中：{'、'.join(deduped[:5])}"
+        if len(hits) >= 2:
+            reason += f"；同时与“{hits[1]['name']}”形成交叉"
+        if not abstract.strip():
+            reason += "。当前判断主要基于标题与期刊元数据"
+        else:
+            reason += "，说明其研究问题或方法与你的核心方向存在直接联系"
+        if age <= 14:
+            reason += "；且属于近两周新论文，建议优先浏览"
+        elif age <= 30:
+            reason += "；且属于近一个月的新论文"
+        return reason + "。", "、".join(h["name"] for h in hits[:3])
+
+    if fallback_terms:
+        reason = f"命中你的自定义关注关键词：{'、'.join(fallback_terms[:5])}"
+        if age <= 14:
+            reason += "；同时属于近两周新论文"
+        return reason + "。", ""
+
+    reason = "来自你的目标期刊目录，且发布时间较新，但与当前核心研究画像的直接关键词匹配较弱"
+    if age <= 14:
+        reason += "；可作为拓展阅读关注"
+    return reason + "。", ""
 
 
 def rank_papers(
@@ -208,6 +321,7 @@ def rank_papers(
     negative: List[Keyword],
     recency_half_life: float = 30.0,
     min_score: float = 0.0,
+    profile: Optional[dict] = None,
 ) -> pd.DataFrame:
     if df.empty:
         return df.copy()
@@ -246,21 +360,14 @@ def rank_papers(
 
         matched = sorted(matched, key=lambda x: x[1], reverse=True)
         matched_terms = [x[0] for x in matched]
-        if matched_terms:
-            reason = f"命中关注关键词：{'、'.join(matched_terms[:5])}"
-            if len(matched_terms) >= 2:
-                reason += f"；覆盖 {len(matched_terms)} 个关注主题"
-        else:
-            reason = "来自目标期刊目录，且发布时间较新"
-        if age <= 14:
-            reason += "；属于近期论文"
-        reason += "。"
+        reason, profile_match = _profile_reason(title, abstract, profile, matched_terms, age)
 
         out = dict(r)
         out.update(
             {
                 "score": round(score, 3),
                 "matched_keywords": ", ".join(matched_terms),
+                "profile_match": profile_match,
                 "recommendation_reason": reason,
                 "age_days": age,
             }
@@ -269,7 +376,10 @@ def rank_papers(
             rows.append(out)
 
     if not rows:
-        return pd.DataFrame(columns=list(df.columns) + ["score", "matched_keywords", "recommendation_reason", "age_days"])
+        return pd.DataFrame(
+            columns=list(df.columns)
+            + ["score", "matched_keywords", "profile_match", "recommendation_reason", "age_days"]
+        )
     out = pd.DataFrame(rows)
     return out.sort_values(["score", "date"], ascending=[False, False]).reset_index(drop=True)
 
