@@ -1,19 +1,29 @@
 {
   "profile_name": "决策分析与智能决策研究画像",
-  "version": 1,
-  "description": "聚焦多准则决策、偏好学习、群决策与共识、数据驱动智能决策，以及不确定性、社会网络与典型决策应用。",
+  "version": 2,
+  "description": "聚焦多准则决策与偏好学习、群体决策与共识达成、语言决策、粒球计算，以及数据驱动智能决策、不确定性与社会网络决策。",
   "themes": [
     {
       "id": "mcda_preference",
       "name": "多准则决策与偏好学习",
       "weight": 3.0,
-      "description": "重点关注多准则分类/排序、价值函数与效用建模、偏好学习、可解释的决策模型。",
+      "description": "重点关注多准则分类/排序、价值函数与效用建模、偏好学习、偏好推断和可解释决策模型。",
+      "semantic_queries": [
+        "ordinal classification and sorting based on preference information",
+        "preference elicitation and preference inference from examples",
+        "utility learning value function learning and preference disaggregation",
+        "non-additive preference modeling with interactions and Choquet integral",
+        "interpretable machine learning for multiple criteria decision aiding"
+      ],
       "keywords": [
         {"term": "preference learning", "weight": 3.0},
         {"term": "preference modeling", "weight": 2.5},
+        {"term": "preference inference", "weight": 2.4},
+        {"term": "preference elicitation", "weight": 2.2},
         {"term": "multiple criteria sorting", "weight": 3.0},
         {"term": "multicriteria sorting", "weight": 3.0},
         {"term": "multi-criteria sorting", "weight": 3.0},
+        {"term": "ordinal classification", "weight": 2.4},
         {"term": "MCDA", "weight": 2.5},
         {"term": "MCDM", "weight": 2.0},
         {"term": "multiple criteria decision", "weight": 2.0},
@@ -24,32 +34,110 @@
         {"term": "UTADIS", "weight": 2.5},
         {"term": "SMAA", "weight": 2.2},
         {"term": "outranking", "weight": 1.8},
-        {"term": "preference disaggregation", "weight": 2.0}
+        {"term": "preference disaggregation", "weight": 2.0},
+        {"term": "Choquet integral", "weight": 1.8}
       ]
     },
     {
       "id": "group_consensus",
-      "name": "群决策与共识",
-      "weight": 2.8,
-      "description": "关注群体偏好聚合、共识达成过程、大群体与社会网络环境下的群决策。",
+      "name": "群体决策与共识达成",
+      "weight": 3.0,
+      "description": "重点关注群体偏好聚合、共识达成过程、大群体决策以及社会网络环境中的群体决策。",
+      "semantic_queries": [
+        "collective decision making and group preference aggregation",
+        "consensus reaching process and consensus building among decision makers",
+        "large-scale group decision making with heterogeneous participants",
+        "social network group decision making with trust relationships",
+        "opinion adjustment negotiation and conflict resolution for consensus"
+      ],
       "keywords": [
         {"term": "group decision making", "weight": 3.0},
         {"term": "group decision-making", "weight": 3.0},
+        {"term": "collective decision making", "weight": 2.4},
         {"term": "consensus reaching", "weight": 3.0},
-        {"term": "consensus process", "weight": 2.6},
-        {"term": "consensus model", "weight": 2.3},
-        {"term": "large-scale group decision", "weight": 2.6},
-        {"term": "social network group decision", "weight": 2.5},
-        {"term": "preference aggregation", "weight": 2.0},
+        {"term": "consensus-reaching", "weight": 3.0},
+        {"term": "consensus process", "weight": 2.8},
+        {"term": "consensus model", "weight": 2.5},
+        {"term": "group consensus", "weight": 2.7},
+        {"term": "consensus building", "weight": 2.3},
+        {"term": "large-scale group decision", "weight": 2.8},
+        {"term": "social network group decision", "weight": 2.7},
+        {"term": "preference aggregation", "weight": 2.2},
+        {"term": "group preference", "weight": 2.0},
+        {"term": "opinion adjustment", "weight": 2.0},
         {"term": "trust network", "weight": 1.8},
-        {"term": "conflict management", "weight": 1.6}
+        {"term": "conflict management", "weight": 1.7}
+      ]
+    },
+    {
+      "id": "linguistic_decision",
+      "name": "语言决策与语言偏好",
+      "weight": 2.7,
+      "description": "关注语言信息表达、语言偏好关系、模糊语言评价及其在群体决策和共识中的应用。",
+      "semantic_queries": [
+        "decision making with linguistic information and computing with words",
+        "linguistic preference relations and fuzzy linguistic assessments",
+        "hesitant fuzzy linguistic term sets for decision making",
+        "probabilistic linguistic term sets and linguistic distribution assessments",
+        "two-tuple linguistic model for group decision making"
+      ],
+      "keywords": [
+        {"term": "linguistic decision making", "weight": 3.0},
+        {"term": "linguistic decision-making", "weight": 3.0},
+        {"term": "linguistic preference", "weight": 2.8},
+        {"term": "linguistic preference relation", "weight": 3.0},
+        {"term": "fuzzy linguistic", "weight": 2.5},
+        {"term": "linguistic term set", "weight": 2.6},
+        {"term": "hesitant fuzzy linguistic", "weight": 2.8},
+        {"term": "hesitant fuzzy linguistic term set", "weight": 3.0},
+        {"term": "probabilistic linguistic", "weight": 2.8},
+        {"term": "probabilistic linguistic term set", "weight": 3.0},
+        {"term": "linguistic distribution assessment", "weight": 2.7},
+        {"term": "2-tuple linguistic", "weight": 2.7},
+        {"term": "two-tuple linguistic", "weight": 2.7},
+        {"term": "computing with words", "weight": 2.5},
+        {"term": "fuzzy preference relation", "weight": 2.4}
+      ]
+    },
+    {
+      "id": "granular_ball",
+      "name": "粒球计算与粒计算",
+      "weight": 2.6,
+      "description": "关注粒球计算、粒球分类/聚类/粗糙集，以及粒计算、多粒度学习与可解释数据分析。",
+      "semantic_queries": [
+        "granular-ball computing for robust efficient and interpretable learning",
+        "granular ball classifier clustering and rough set",
+        "granular computing information granules and multi-granularity learning",
+        "rough set based granular learning and uncertainty modeling",
+        "granulation based machine learning with adaptive information granules"
+      ],
+      "keywords": [
+        {"term": "granular-ball computing", "weight": 3.0},
+        {"term": "granular ball computing", "weight": 3.0},
+        {"term": "granular-ball", "weight": 2.8},
+        {"term": "granular ball", "weight": 2.5},
+        {"term": "granular-ball classifier", "weight": 3.0},
+        {"term": "granular-ball clustering", "weight": 3.0},
+        {"term": "granular-ball rough set", "weight": 3.0},
+        {"term": "granular computing", "weight": 2.5},
+        {"term": "information granule", "weight": 2.0},
+        {"term": "information granules", "weight": 2.0},
+        {"term": "multi-granularity", "weight": 2.1},
+        {"term": "rough set", "weight": 1.8}
       ]
     },
     {
       "id": "ai_data_driven",
       "name": "数据驱动与智能决策",
       "weight": 2.4,
-      "description": "关注机器学习、神经网络和图学习等方法与决策分析、偏好建模的融合。",
+      "description": "关注机器学习、神经网络、图学习与决策分析、偏好建模的融合。",
+      "semantic_queries": [
+        "data driven preference modeling from historical decisions",
+        "neural decision model with monotonicity and interpretability",
+        "graph neural networks for decision analysis and preference learning",
+        "attention based interpretable learning for decision support",
+        "evidential learning and uncertainty aware intelligent decision making"
+      ],
       "keywords": [
         {"term": "data-driven decision", "weight": 2.8},
         {"term": "data driven decision", "weight": 2.8},
@@ -70,6 +158,12 @@
       "name": "不确定性、风险与鲁棒决策",
       "weight": 2.1,
       "description": "关注风险、不确定性表达、证据理论、鲁棒优化及其在决策模型中的应用。",
+      "semantic_queries": [
+        "robust decision making under uncertain parameters and costs",
+        "risk preference and behavioral decision under uncertainty",
+        "evidence theory and evidential deep learning for uncertain decisions",
+        "distributionally robust and stochastic optimization for decision support"
+      ],
       "keywords": [
         {"term": "robust optimization", "weight": 2.8},
         {"term": "decision under uncertainty", "weight": 2.5},
@@ -80,7 +174,8 @@
         {"term": "Dempster-Shafer", "weight": 2.2},
         {"term": "uncertainty quantification", "weight": 1.8},
         {"term": "Bayesian decision", "weight": 1.7},
-        {"term": "stochastic decision", "weight": 1.5}
+        {"term": "stochastic decision", "weight": 1.5},
+        {"term": "distributionally robust", "weight": 2.0}
       ]
     },
     {
@@ -88,6 +183,12 @@
       "name": "社会网络与意见演化",
       "weight": 1.9,
       "description": "关注社会网络中的意见动力学、说服者选择、影响传播与网络干预。",
+      "semantic_queries": [
+        "opinion dynamics and opinion evolution in social networks",
+        "persuader selection and influence intervention",
+        "social influence diffusion and network based behavioral change",
+        "optimization of intervention strategies in social networks"
+      ],
       "keywords": [
         {"term": "opinion dynamics", "weight": 3.0},
         {"term": "opinion evolution", "weight": 2.8},
@@ -104,6 +205,12 @@
       "name": "决策应用与数据科学",
       "weight": 1.4,
       "description": "适度关注信用风险、医疗推荐、FMEA、政策评估等决策分析应用。",
+      "semantic_queries": [
+        "decision analytics for credit risk and bankruptcy prediction",
+        "medication recommendation and clinical decision support with noisy labels",
+        "risk prioritization in failure mode and effects analysis",
+        "data driven policy evaluation and decision support"
+      ],
       "keywords": [
         {"term": "credit risk", "weight": 1.8},
         {"term": "bankruptcy prediction", "weight": 1.6},
@@ -125,12 +232,16 @@
     "evidential learning",
     "robust optimization",
     "SMAA",
-    "preference disaggregation"
+    "preference disaggregation",
+    "linguistic preference modeling",
+    "granular-ball computing"
   ],
   "negative_keywords": [],
   "settings": {
     "recency_half_life_days": 30,
     "default_days": 60,
-    "default_min_score": 1.0
+    "default_min_score": 1.0,
+    "semantic_weight": 10.0,
+    "semantic_threshold": 0.055
   }
 }
