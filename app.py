@@ -40,8 +40,8 @@ st.markdown(
     .paper-reason {font-size: .98rem; color: #08a857; font-weight: 650; line-height: 1.8; margin-top: .75rem;}
     .paper-profile {font-size: .90rem; color: #5a7184; margin-top: .45rem;}
     .score-badge {display:inline-block; background:#eef7f2; color:#16784b; padding:.13rem .55rem; border-radius:999px; font-size:.8rem; font-weight:700; margin-left:.35rem;}
+    .semantic-badge {display:inline-block; background:#f4f1fb; color:#67538c; padding:.13rem .55rem; border-radius:999px; font-size:.8rem; font-weight:700; margin-left:.35rem;}
     .theme-badge {display:inline-block; background:#f3f6f8; color:#536b7b; padding:.12rem .5rem; border-radius:999px; font-size:.78rem; margin-right:.25rem;}
-    .hint {color:#7b8794;font-size:.9rem;}
     div[data-testid="stSidebar"] {background: #f8fafb;}
 </style>
 """,
@@ -91,6 +91,7 @@ def render_card(i: int, row: pd.Series):
     reason = html_escape(row.get("recommendation_reason"))
     profile_match = safe_text(row.get("profile_match"))
     score = float(row.get("score", 0.0) or 0.0)
+    semantic_score = float(row.get("semantic_score", 0.0) or 0.0)
     doi = safe_text(row.get("doi"))
     url = safe_text(row.get("url"))
     catalog = safe_text(row.get("catalog"))
@@ -100,15 +101,15 @@ def render_card(i: int, row: pd.Series):
     if profile_match:
         badges = "".join(
             f'<span class="theme-badge">{html_escape(x.strip())}</span>'
-            for x in profile_match.split("、")
-            if x.strip()
+            for x in profile_match.split("、") if x.strip()
         )
         theme_html = f'<div class="paper-profile">与你的研究画像匹配：{badges}</div>'
 
+    sem_badge = f'<span class="semantic-badge">语义 {semantic_score:.1f}</span>' if semantic_score > 0 else ""
     st.markdown(
         f"""
 <div class="paper-card">
-  <div class="paper-title">{i}. {title}<span class="score-badge">匹配度 {score:.1f}</span></div>
+  <div class="paper-title">{i}. {title}<span class="score-badge">综合 {score:.1f}</span>{sem_badge}</div>
   <div class="paper-meta">✍️ {authors or '作者信息暂缺'} &nbsp;|&nbsp; 📖 {journal or '期刊信息暂缺'}{catalog_piece}<br>📅 {pubdate or '日期暂缺'} {('&nbsp;|&nbsp; DOI: ' + html_escape(doi)) if doi else ''}</div>
   <div class="paper-abstract">{abstract_display}</div>
   {theme_html}
@@ -126,7 +127,7 @@ profile_settings = profile.get("settings") or {}
 profile_kws = profile_keywords(profile)
 
 st.sidebar.title("⚙️ 推荐设置")
-st.sidebar.caption("系统优先使用已保存的研究兴趣画像，再叠加你临时输入的关注关键词。")
+st.sidebar.caption("系统使用已保存的研究兴趣画像，并结合关键词匹配与语义匹配进行推荐。")
 
 with st.sidebar.expander("🧭 我的研究兴趣画像", expanded=True):
     st.markdown(f"**{profile.get('profile_name', '研究兴趣画像')}**")
@@ -138,9 +139,10 @@ with st.sidebar.expander("🧭 我的研究兴趣画像", expanded=True):
         st.markdown(f"**{name}** · 权重 {weight:g}")
         if desc:
             st.caption(desc)
-    st.caption(f"画像已保存到 `config/research_profile.json`，当前包含 {len(profile_kws)} 个加权关键词。")
+    st.caption(f"当前包含 {len(profile.get('themes') or [])} 个主题、{len(profile_kws)} 个加权关键词。")
 
 use_profile = st.sidebar.toggle("使用研究兴趣画像", value=True)
+use_semantic = st.sidebar.toggle("启用语义匹配", value=True, help="除精确关键词外，识别概念相近但措辞不同的论文。")
 
 uploaded = st.sidebar.file_uploader("期刊目录 CSV", type=["csv"], help="列：journal, issn, catalog, weight")
 if uploaded is not None:
@@ -165,51 +167,38 @@ with st.sidebar.expander(f"目标期刊（{len(catalog_df)}）", expanded=False)
     st.dataframe(catalog_df[["journal", "issn", "catalog", "weight"]], hide_index=True, use_container_width=True)
 
 extra_positive_text = st.sidebar.text_area(
-    "临时增加关注关键词（可选）",
-    value="",
-    height=120,
-    help="每行一个，可写 keyword|权重。这里的内容会叠加在研究兴趣画像上，不会修改画像配置文件。",
+    "临时增加关注关键词（可选）", value="", height=120,
+    help="每行一个，可写 keyword|权重。这里的内容会叠加在研究兴趣画像上。",
 )
-
 configured_negative = "\n".join(
-    (
-        f"{x.get('term', '')}|{x.get('weight', 1.0)}"
-        if isinstance(x, dict)
-        else str(x)
-    )
+    f"{x.get('term', '')}|{x.get('weight', 1.0)}" if isinstance(x, dict) else str(x)
     for x in (profile.get("negative_keywords") or [])
 )
-negative_text = st.sidebar.text_area(
-    "降权关键词（可选）",
-    value=configured_negative,
-    height=90,
-    help="不感兴趣的主题，每行一个，可带权重。",
-)
+negative_text = st.sidebar.text_area("降权关键词（可选）", value=configured_negative, height=90)
 
-default_days = int(profile_settings.get("default_days", 60) or 60)
-default_days = max(7, min(180, default_days))
+default_days = max(7, min(180, int(profile_settings.get("default_days", 60) or 60)))
 days = st.sidebar.slider("检索最近多少天", 7, 180, default_days, 1)
 rows_per_journal = st.sidebar.slider("每刊最多获取论文数", 5, 100, 35, 5)
 max_results = st.sidebar.slider("首页最多展示", 5, 100, 30, 5)
 default_min_score = float(profile_settings.get("default_min_score", 1.0) or 1.0)
 min_score = st.sidebar.number_input("最低推荐分", min_value=-20.0, max_value=100.0, value=default_min_score, step=0.5)
 mailto = st.sidebar.text_input("Crossref 联系邮箱（建议填写）", value="", placeholder="name@university.edu")
-
 fetch_now = st.sidebar.button("🔄 获取并生成推荐", type="primary", use_container_width=True)
 
 st.title("📚 Paper Radar · 论文推荐")
-st.caption("根据目标期刊目录与已保存的个人研究兴趣画像，发现近期论文并解释“为什么值得你关注”。")
+st.caption("根据目标期刊目录与个人研究兴趣画像，通过关键词 + 轻量语义匹配发现近期论文并解释推荐原因。")
 
 active_positive = []
 if use_profile:
     active_positive.extend(profile_kws)
 active_positive.extend(parse_keywords(extra_positive_text))
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("目标期刊", len(catalog_df))
 c2.metric("画像主题", len(profile.get("themes") or []) if use_profile else 0)
 c3.metric("有效关键词", len(active_positive))
-c4.metric("检索窗口", f"{days} 天")
+c4.metric("语义匹配", "开启" if (use_profile and use_semantic) else "关闭")
+c5.metric("检索窗口", f"{days} 天")
 
 if use_profile:
     with st.expander("查看当前研究兴趣画像关键词", expanded=False):
@@ -225,10 +214,8 @@ if fetch_now:
     if not active_positive:
         st.warning("请启用研究兴趣画像，或至少填写一个临时关注关键词。")
     else:
-        with st.spinner("正在从目标期刊获取近期论文，并依据研究兴趣画像生成推荐…"):
-            raw_df, errors = cached_fetch(
-                catalog_df.to_json(orient="split"), days, rows_per_journal, mailto
-            )
+        with st.spinner("正在获取近期论文，并进行关键词与语义匹配…"):
+            raw_df, errors = cached_fetch(catalog_df.to_json(orient="split"), days, rows_per_journal, mailto)
             ranked = rank_papers(
                 raw_df,
                 active_positive,
@@ -236,6 +223,9 @@ if fetch_now:
                 recency_half_life=float(profile_settings.get("recency_half_life_days", 30) or 30),
                 min_score=min_score,
                 profile=profile if use_profile else None,
+                use_semantic=bool(use_profile and use_semantic),
+                semantic_weight=float(profile_settings.get("semantic_weight", 10.0) or 10.0),
+                semantic_threshold=float(profile_settings.get("semantic_threshold", 0.055) or 0.055),
             )
             st.session_state.results = ranked
             st.session_state.errors = errors
@@ -243,10 +233,8 @@ if fetch_now:
 
 results = st.session_state.results
 errors = st.session_state.errors
-
 if st.session_state.last_run:
     st.caption(f"最近刷新：{st.session_state.last_run} · 当前缓存 30 分钟，可手动再次刷新。")
-
 if errors:
     with st.expander(f"⚠️ {len(errors)} 个期刊请求未成功", expanded=False):
         st.code("\n".join(errors[:30]))
@@ -256,7 +244,6 @@ if not results.empty:
     f1, f2 = st.columns([2, 1])
     selected_catalogs = f1.multiselect("按目录筛选", catalogs, default=catalogs)
     keyword_filter = f2.text_input("结果内搜索", placeholder="标题/作者/期刊")
-
     view = results.copy()
     if selected_catalogs:
         view = view[view["catalog"].astype(str).isin(selected_catalogs)]
@@ -275,17 +262,17 @@ if not results.empty:
 
     export_cols = [
         "title", "authors", "journal", "catalog", "date", "doi", "url", "abstract",
-        "score", "profile_match", "matched_keywords", "recommendation_reason"
+        "score", "keyword_score", "semantic_score", "semantic_similarity", "profile_match",
+        "matched_keywords", "recommendation_reason"
     ]
     csv_bytes = view[[c for c in export_cols if c in view.columns]].to_csv(index=False).encode("utf-8-sig")
     st.download_button("⬇️ 导出当前推荐 CSV", csv_bytes, file_name="paper_recommendations.csv", mime="text/csv")
 else:
-    st.info("点击左侧“获取并生成推荐”开始。系统已经预置并启用了你的研究兴趣画像。")
+    st.info("点击左侧“获取并生成推荐”开始。系统已预置并启用你的研究兴趣画像。")
     st.markdown(
         """
-当前推荐不再只看孤立关键词，而是先判断论文与哪一类研究主题匹配，再生成推荐理由。例如：
-**“与你的‘多准则决策与偏好学习’研究兴趣高度契合，同时与‘数据驱动与智能决策’形成交叉；主要命中 preference learning、graph neural network 等主题。”**
+当前版本同时使用两类信号：**精确关键词匹配**负责高精度识别，**语义匹配**负责发现措辞不同但研究内容相近的论文。例如论文没有直接写 `preference learning`，但讨论 ordinal classification、preference elicitation 或 utility learning 时，也可能被识别为相关。
 
-当前画像是可解释的规则型画像，不依赖额外的大模型 API，因此部署稳定、成本低。后续还可以继续加入语义向量匹配、中文摘要、收藏/不感兴趣反馈学习等功能。
+你的画像现已重点覆盖：**多准则决策与偏好学习、群体决策与共识达成、语言决策与语言偏好、粒球计算与粒计算、数据驱动与智能决策、不确定性与鲁棒决策、社会网络与意见演化**等主题。
 """
     )
