@@ -1,0 +1,136 @@
+{
+  "profile_name": "决策分析与智能决策研究画像",
+  "version": 1,
+  "description": "聚焦多准则决策、偏好学习、群决策与共识、数据驱动智能决策，以及不确定性、社会网络与典型决策应用。",
+  "themes": [
+    {
+      "id": "mcda_preference",
+      "name": "多准则决策与偏好学习",
+      "weight": 3.0,
+      "description": "重点关注多准则分类/排序、价值函数与效用建模、偏好学习、可解释的决策模型。",
+      "keywords": [
+        {"term": "preference learning", "weight": 3.0},
+        {"term": "preference modeling", "weight": 2.5},
+        {"term": "multiple criteria sorting", "weight": 3.0},
+        {"term": "multicriteria sorting", "weight": 3.0},
+        {"term": "multi-criteria sorting", "weight": 3.0},
+        {"term": "MCDA", "weight": 2.5},
+        {"term": "MCDM", "weight": 2.0},
+        {"term": "multiple criteria decision", "weight": 2.0},
+        {"term": "multi-criteria decision", "weight": 2.0},
+        {"term": "decision aiding", "weight": 2.0},
+        {"term": "value function", "weight": 1.8},
+        {"term": "utility function", "weight": 1.5},
+        {"term": "UTADIS", "weight": 2.5},
+        {"term": "SMAA", "weight": 2.2},
+        {"term": "outranking", "weight": 1.8},
+        {"term": "preference disaggregation", "weight": 2.0}
+      ]
+    },
+    {
+      "id": "group_consensus",
+      "name": "群决策与共识",
+      "weight": 2.8,
+      "description": "关注群体偏好聚合、共识达成过程、大群体与社会网络环境下的群决策。",
+      "keywords": [
+        {"term": "group decision making", "weight": 3.0},
+        {"term": "group decision-making", "weight": 3.0},
+        {"term": "consensus reaching", "weight": 3.0},
+        {"term": "consensus process", "weight": 2.6},
+        {"term": "consensus model", "weight": 2.3},
+        {"term": "large-scale group decision", "weight": 2.6},
+        {"term": "social network group decision", "weight": 2.5},
+        {"term": "preference aggregation", "weight": 2.0},
+        {"term": "trust network", "weight": 1.8},
+        {"term": "conflict management", "weight": 1.6}
+      ]
+    },
+    {
+      "id": "ai_data_driven",
+      "name": "数据驱动与智能决策",
+      "weight": 2.4,
+      "description": "关注机器学习、神经网络和图学习等方法与决策分析、偏好建模的融合。",
+      "keywords": [
+        {"term": "data-driven decision", "weight": 2.8},
+        {"term": "data driven decision", "weight": 2.8},
+        {"term": "data-driven preference", "weight": 2.8},
+        {"term": "neural network", "weight": 1.8},
+        {"term": "deep learning", "weight": 1.5},
+        {"term": "machine learning", "weight": 1.3},
+        {"term": "graph neural network", "weight": 2.3},
+        {"term": "graph convolutional network", "weight": 2.1},
+        {"term": "attention mechanism", "weight": 1.8},
+        {"term": "evidential learning", "weight": 2.0},
+        {"term": "explainable AI", "weight": 1.8},
+        {"term": "interpretable machine learning", "weight": 1.7}
+      ]
+    },
+    {
+      "id": "uncertainty_robust",
+      "name": "不确定性、风险与鲁棒决策",
+      "weight": 2.1,
+      "description": "关注风险、不确定性表达、证据理论、鲁棒优化及其在决策模型中的应用。",
+      "keywords": [
+        {"term": "robust optimization", "weight": 2.8},
+        {"term": "decision under uncertainty", "weight": 2.5},
+        {"term": "risk preference", "weight": 2.2},
+        {"term": "risk management", "weight": 1.8},
+        {"term": "evidence theory", "weight": 2.0},
+        {"term": "evidential deep learning", "weight": 2.4},
+        {"term": "Dempster-Shafer", "weight": 2.2},
+        {"term": "uncertainty quantification", "weight": 1.8},
+        {"term": "Bayesian decision", "weight": 1.7},
+        {"term": "stochastic decision", "weight": 1.5}
+      ]
+    },
+    {
+      "id": "social_dynamics",
+      "name": "社会网络与意见演化",
+      "weight": 1.9,
+      "description": "关注社会网络中的意见动力学、说服者选择、影响传播与网络干预。",
+      "keywords": [
+        {"term": "opinion dynamics", "weight": 3.0},
+        {"term": "opinion evolution", "weight": 2.8},
+        {"term": "persuasion", "weight": 1.9},
+        {"term": "persuader selection", "weight": 3.0},
+        {"term": "social influence", "weight": 2.2},
+        {"term": "influence maximization", "weight": 2.0},
+        {"term": "social network", "weight": 1.3},
+        {"term": "network intervention", "weight": 2.0}
+      ]
+    },
+    {
+      "id": "applications",
+      "name": "决策应用与数据科学",
+      "weight": 1.4,
+      "description": "适度关注信用风险、医疗推荐、FMEA、政策评估等决策分析应用。",
+      "keywords": [
+        {"term": "credit risk", "weight": 1.8},
+        {"term": "bankruptcy prediction", "weight": 1.6},
+        {"term": "credit scoring", "weight": 1.7},
+        {"term": "medication recommendation", "weight": 2.2},
+        {"term": "clinical decision support", "weight": 1.8},
+        {"term": "label noise", "weight": 2.0},
+        {"term": "noisy labels", "weight": 1.8},
+        {"term": "failure mode and effects analysis", "weight": 1.8},
+        {"term": "FMEA", "weight": 1.8},
+        {"term": "policy evaluation", "weight": 1.5}
+      ]
+    }
+  ],
+  "methods_of_interest": [
+    "neural network",
+    "graph neural network",
+    "attention",
+    "evidential learning",
+    "robust optimization",
+    "SMAA",
+    "preference disaggregation"
+  ],
+  "negative_keywords": [],
+  "settings": {
+    "recency_half_life_days": 30,
+    "default_days": 60,
+    "default_min_score": 1.0
+  }
+}
