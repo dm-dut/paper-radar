@@ -77,9 +77,7 @@ def profile_keywords(profile: dict) -> List[Keyword]:
             key = term.casefold()
             seen[key] = max(seen.get(key, 0.0), effective)
             originals.setdefault(key, term)
-    for key, weight in seen.items():
-        out.append(Keyword(term=originals[key], weight=weight))
-    return out
+    return [Keyword(term=originals[k], weight=w) for k, w in seen.items()]
 
 
 def profile_keywords_text(profile: dict) -> str:
@@ -145,13 +143,12 @@ def fetch_crossref_journal(
     if mailto.strip():
         params["mailto"] = mailto.strip()
     headers = {
-        "User-Agent": "PaperRecommender/0.2 (scholarly metadata discovery; contact via configured mailto)"
+        "User-Agent": "PaperRecommender/0.3 (scholarly metadata discovery; contact via configured mailto)"
     }
     url = f"{CROSSREF_BASE}/journals/{quote(issn)}/works"
     r = requests.get(url, params=params, headers=headers, timeout=timeout)
     r.raise_for_status()
-    items = ((r.json() or {}).get("message") or {}).get("items") or []
-    return items
+    return ((r.json() or {}).get("message") or {}).get("items") or []
 
 
 def fetch_catalog(
@@ -163,7 +160,6 @@ def fetch_catalog(
 ) -> Tuple[pd.DataFrame, List[str]]:
     errors: List[str] = []
     records: List[dict] = []
-
     prepared = []
     for _, row in journal_df.iterrows():
         issn = normalize_issn(str(row.get("issn", "")))
@@ -269,50 +265,166 @@ def _profile_hits(title: str, abstract: str, profile: Optional[dict]) -> List[di
     return sorted(hits, key=lambda x: x["score"], reverse=True)
 
 
+def _theme_document(theme: dict) -> str:
+    parts = [
+        str(theme.get("name", "")),
+        str(theme.get("description", "")),
+        " ".join(str(x) for x in (theme.get("semantic_queries") or [])),
+    ]
+    for item in theme.get("keywords") or []:
+        parts.append(str(item if isinstance(item, str) else item.get("term", "")))
+    return " ".join(x for x in parts if x).strip()
+
+
+def semantic_theme_matches(
+    df: pd.DataFrame,
+    profile: Optional[dict],
+    threshold: float = 0.055,
+) -> Dict[int, List[dict]]:
+    """Lightweight semantic matching using theme descriptions + concept expansion + TF-IDF similarity.
+
+    This is intentionally local and API-free. It combines word n-grams and character n-grams,
+    so related formulations such as ordinal classification / preference learning or consensus
+    building / consensus reaching can still receive a signal when the exact core phrase differs.
+    """
+    if df.empty or not profile or not (profile.get("themes") or []):
+        return {}
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+    except Exception:
+        return {}
+
+    themes = profile.get("themes") or []
+    theme_docs = [_theme_document(t) for t in themes]
+    paper_docs = []
+    for _, r in df.iterrows():
+        title = safe_text(r.get("title"))
+        abstract = safe_text(r.get("abstract"))
+        journal = safe_text(r.get("journal"))
+        # Title is repeated to emphasize problem framing while still using the abstract context.
+        paper_docs.append(f"{title}. {title}. {abstract[:6000]} {journal}")
+
+    corpus = theme_docs + paper_docs
+    if not any(x.strip() for x in corpus):
+        return {}
+
+    try:
+        word_vec = TfidfVectorizer(
+            lowercase=True,
+            stop_words="english",
+            ngram_range=(1, 2),
+            sublinear_tf=True,
+            min_df=1,
+            max_features=20000,
+        )
+        word_matrix = word_vec.fit_transform(corpus)
+        word_sim = cosine_similarity(word_matrix[: len(themes)], word_matrix[len(themes) :])
+    except Exception:
+        word_sim = None
+
+    try:
+        char_vec = TfidfVectorizer(
+            lowercase=True,
+            analyzer="char_wb",
+            ngram_range=(3, 5),
+            sublinear_tf=True,
+            min_df=1,
+            max_features=30000,
+        )
+        char_matrix = char_vec.fit_transform(corpus)
+        char_sim = cosine_similarity(char_matrix[: len(themes)], char_matrix[len(themes) :])
+    except Exception:
+        char_sim = None
+
+    if word_sim is None and char_sim is None:
+        return {}
+    if word_sim is None:
+        combined = char_sim
+    elif char_sim is None:
+        combined = word_sim
+    else:
+        combined = 0.75 * word_sim + 0.25 * char_sim
+
+    result: Dict[int, List[dict]] = {}
+    df_indices = list(df.index)
+    for paper_pos, df_idx in enumerate(df_indices):
+        hits = []
+        for theme_pos, theme in enumerate(themes):
+            sim = float(combined[theme_pos, paper_pos])
+            if sim >= threshold:
+                hits.append(
+                    {
+                        "name": str(theme.get("name", "")),
+                        "similarity": sim,
+                        "theme_weight": float(theme.get("weight", 1.0) or 1.0),
+                    }
+                )
+        result[df_idx] = sorted(hits, key=lambda x: x["similarity"] * x["theme_weight"], reverse=True)
+    return result
+
+
 def _profile_reason(
     title: str,
     abstract: str,
     profile: Optional[dict],
     fallback_terms: List[str],
     age: int,
-) -> Tuple[str, str]:
-    hits = _profile_hits(title, abstract, profile)
-    if hits:
-        primary = hits[0]
-        all_terms = []
-        for h in hits[:2]:
-            all_terms.extend(h["terms"])
+    semantic_hits: Optional[List[dict]] = None,
+) -> Tuple[str, str, float]:
+    exact_hits = _profile_hits(title, abstract, profile)
+    semantic_hits = semantic_hits or []
+    theme_names: List[str] = []
+    for h in exact_hits:
+        if h["name"] not in theme_names:
+            theme_names.append(h["name"])
+    for h in semantic_hits:
+        if h["name"] not in theme_names:
+            theme_names.append(h["name"])
+
+    semantic_top = float(semantic_hits[0]["similarity"]) if semantic_hits else 0.0
+
+    if exact_hits:
+        primary = exact_hits[0]
+        terms = []
+        for h in exact_hits[:2]:
+            terms.extend(h["terms"])
         deduped = []
         seen = set()
-        for t in all_terms:
-            key = t.casefold()
-            if key not in seen:
+        for t in terms:
+            k = t.casefold()
+            if k not in seen:
                 deduped.append(t)
-                seen.add(key)
+                seen.add(k)
         strength = "高度契合" if primary["score"] >= 12 or len(deduped) >= 3 else "较为契合"
-        reason = f"与你的“{primary['name']}”研究兴趣{strength}，主要命中：{'、'.join(deduped[:5])}"
-        if len(hits) >= 2:
-            reason += f"；同时与“{hits[1]['name']}”形成交叉"
+        reason = f"与你的“{primary['name']}”研究兴趣{strength}，直接命中：{'、'.join(deduped[:5])}"
+        if len(exact_hits) >= 2:
+            reason += f"；同时与“{exact_hits[1]['name']}”形成交叉"
+        sem_extra = next((h for h in semantic_hits if h["name"] not in [x["name"] for x in exact_hits[:2]]), None)
+        if sem_extra:
+            reason += f"；语义上还与“{sem_extra['name']}”接近"
         if not abstract.strip():
             reason += "。当前判断主要基于标题与期刊元数据"
         else:
             reason += "，说明其研究问题或方法与你的核心方向存在直接联系"
-        if age <= 14:
-            reason += "；且属于近两周新论文，建议优先浏览"
-        elif age <= 30:
-            reason += "；且属于近一个月的新论文"
-        return reason + "。", "、".join(h["name"] for h in hits[:3])
+    elif semantic_hits:
+        primary = semantic_hits[0]
+        reason = (
+            f"未直接出现你的核心关键词，但标题/摘要的整体表述与“{primary['name']}”主题具有语义关联"
+        )
+        if len(semantic_hits) >= 2:
+            reason += f"，并与“{semantic_hits[1]['name']}”存在一定交叉"
+        reason += "；建议作为潜在相关论文浏览，以避免仅依赖关键词造成漏检"
+    elif fallback_terms:
+        reason = f"命中你的临时关注关键词：{'、'.join(fallback_terms[:5])}"
+    else:
+        reason = "来自目标期刊目录且较新，但与当前研究画像的直接或语义匹配较弱"
 
-    if fallback_terms:
-        reason = f"命中你的自定义关注关键词：{'、'.join(fallback_terms[:5])}"
-        if age <= 14:
-            reason += "；同时属于近两周新论文"
-        return reason + "。", ""
-
-    reason = "来自你的目标期刊目录，且发布时间较新，但与当前核心研究画像的直接关键词匹配较弱"
     if age <= 14:
-        reason += "；可作为拓展阅读关注"
-    return reason + "。", ""
+        reason += "；且属于近两周新论文，建议优先浏览"
+    elif age <= 30:
+        reason += "；且属于近一个月的新论文"
+    return reason + "。", "、".join(theme_names[:3]), semantic_top
 
 
 def rank_papers(
@@ -322,13 +434,17 @@ def rank_papers(
     recency_half_life: float = 30.0,
     min_score: float = 0.0,
     profile: Optional[dict] = None,
+    use_semantic: bool = True,
+    semantic_weight: float = 10.0,
+    semantic_threshold: float = 0.055,
 ) -> pd.DataFrame:
     if df.empty:
         return df.copy()
 
+    semantic_map = semantic_theme_matches(df, profile, threshold=semantic_threshold) if use_semantic else {}
     today = date.today()
     rows = []
-    for _, r in df.iterrows():
+    for idx, r in df.iterrows():
         title = str(r.get("title", ""))
         abstract = str(r.get("abstract", ""))
         matched: List[Tuple[str, float]] = []
@@ -356,16 +472,30 @@ def rank_papers(
         recency = math.exp(-math.log(2) * age / max(1.0, recency_half_life))
         journal_weight = float(r.get("journal_weight", 1.0) or 1.0)
         coverage = len(matched) / max(1, len(positive))
-        score = (pos_score - neg_score) * journal_weight + 1.2 * recency + 0.8 * coverage
 
+        semantic_hits = semantic_map.get(idx, [])
+        semantic_component = 0.0
+        if semantic_hits:
+            primary = semantic_hits[0]
+            semantic_component += semantic_weight * primary["similarity"] * primary["theme_weight"]
+            if len(semantic_hits) > 1:
+                secondary = semantic_hits[1]
+                semantic_component += 0.35 * semantic_weight * secondary["similarity"] * secondary["theme_weight"]
+
+        score = (pos_score - neg_score) * journal_weight + semantic_component + 1.2 * recency + 0.8 * coverage
         matched = sorted(matched, key=lambda x: x[1], reverse=True)
         matched_terms = [x[0] for x in matched]
-        reason, profile_match = _profile_reason(title, abstract, profile, matched_terms, age)
+        reason, profile_match, semantic_top = _profile_reason(
+            title, abstract, profile, matched_terms, age, semantic_hits=semantic_hits
+        )
 
         out = dict(r)
         out.update(
             {
                 "score": round(score, 3),
+                "keyword_score": round(pos_score - neg_score, 3),
+                "semantic_score": round(semantic_component, 3),
+                "semantic_similarity": round(semantic_top, 4),
                 "matched_keywords": ", ".join(matched_terms),
                 "profile_match": profile_match,
                 "recommendation_reason": reason,
@@ -375,11 +505,12 @@ def rank_papers(
         if score >= min_score:
             rows.append(out)
 
+    extra_cols = [
+        "score", "keyword_score", "semantic_score", "semantic_similarity",
+        "matched_keywords", "profile_match", "recommendation_reason", "age_days"
+    ]
     if not rows:
-        return pd.DataFrame(
-            columns=list(df.columns)
-            + ["score", "matched_keywords", "profile_match", "recommendation_reason", "age_days"]
-        )
+        return pd.DataFrame(columns=list(df.columns) + extra_cols)
     out = pd.DataFrame(rows)
     return out.sort_values(["score", "date"], ascending=[False, False]).reset_index(drop=True)
 
