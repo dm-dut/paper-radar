@@ -8,23 +8,131 @@ from typing import List, Optional
 import pandas as pd
 import requests
 
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_OPENAI_MODEL = "gpt-5.6-luna"
+DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 DEFAULT_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
 
+def configured_provider() -> str:
+    """Return the configured LLM provider.
+
+    Priority: explicit LLM_PROVIDER -> provider-specific API keys -> legacy
+    OPENAI_* settings. The legacy path makes older Railway configurations keep
+    working and can also detect a DeepSeek base URL.
+    """
+    explicit = os.getenv("LLM_PROVIDER", "").strip().lower()
+    if explicit:
+        return explicit
+    if os.getenv("DEEPSEEK_API_KEY", "").strip():
+        return "deepseek"
+    if os.getenv("OPENAI_API_KEY", "").strip():
+        legacy_base = os.getenv("OPENAI_BASE_URL", DEFAULT_OPENAI_BASE_URL).lower()
+        if "deepseek" in legacy_base:
+            return "deepseek"
+        return "openai"
+    if os.getenv("LLM_API_KEY", "").strip():
+        return "generic"
+    return "none"
+
+
+def _provider_config() -> dict:
+    provider = configured_provider()
+    if provider == "deepseek":
+        api_key = (
+            os.getenv("DEEPSEEK_API_KEY", "").strip()
+            or os.getenv("LLM_API_KEY", "").strip()
+            or os.getenv("OPENAI_API_KEY", "").strip()
+        )
+        base_url = (
+            os.getenv("DEEPSEEK_BASE_URL", "").strip()
+            or os.getenv("LLM_BASE_URL", "").strip()
+            or (
+                os.getenv("OPENAI_BASE_URL", "").strip()
+                if "deepseek" in os.getenv("OPENAI_BASE_URL", "").lower()
+                else ""
+            )
+            or DEFAULT_DEEPSEEK_BASE_URL
+        )
+        model = (
+            os.getenv("DEEPSEEK_MODEL", "").strip()
+            or os.getenv("LLM_MODEL", "").strip()
+            or (
+                os.getenv("OPENAI_MODEL", "").strip()
+                if os.getenv("OPENAI_MODEL", "").strip().startswith("deepseek-")
+                else ""
+            )
+            or DEFAULT_DEEPSEEK_MODEL
+        )
+    elif provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY", "").strip() or os.getenv("LLM_API_KEY", "").strip()
+        base_url = (
+            os.getenv("OPENAI_BASE_URL", "").strip()
+            or os.getenv("LLM_BASE_URL", "").strip()
+            or DEFAULT_OPENAI_BASE_URL
+        )
+        model = (
+            os.getenv("OPENAI_MODEL", "").strip()
+            or os.getenv("LLM_MODEL", "").strip()
+            or DEFAULT_OPENAI_MODEL
+        )
+    elif provider == "generic":
+        api_key = os.getenv("LLM_API_KEY", "").strip()
+        base_url = os.getenv("LLM_BASE_URL", "").strip()
+        model = os.getenv("LLM_MODEL", "").strip()
+    else:
+        api_key = ""
+        base_url = ""
+        model = ""
+
+    return {
+        "provider": provider,
+        "api_key": api_key,
+        "base_url": base_url.rstrip("/"),
+        "model": model,
+    }
+
+
+def llm_configured() -> bool:
+    cfg = _provider_config()
+    return bool(cfg["api_key"] and cfg["base_url"] and cfg["model"])
+
+
 def openai_configured() -> bool:
-    return bool(os.getenv("OPENAI_API_KEY", "").strip())
+    """Backward-compatible alias used by the current Streamlit UI."""
+    return llm_configured()
 
 
 def configured_model() -> str:
-    return os.getenv("OPENAI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    return _provider_config()["model"]
+
+
+def configured_provider_name() -> str:
+    provider = configured_provider()
+    return {
+        "deepseek": "DeepSeek",
+        "openai": "OpenAI",
+        "generic": "兼容 Responses API 的模型服务",
+        "none": "未配置",
+    }.get(provider, provider or "未配置")
+
+
+def model_options() -> List[str]:
+    provider = configured_provider()
+    if provider == "deepseek":
+        return ["deepseek-v4-flash", "deepseek-v4-pro"]
+    if provider == "openai":
+        return ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"]
+    current = configured_model()
+    return [current] if current else []
 
 
 def _headers() -> dict:
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    cfg = _provider_config()
+    api_key = cfg["api_key"]
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not configured")
+        raise RuntimeError(f"{configured_provider_name()} API key is not configured")
     return {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -132,7 +240,12 @@ def analyze_papers_with_llm(
 ) -> List[dict]:
     if not papers:
         return []
-    model = (model or configured_model()).strip()
+
+    cfg = _provider_config()
+    if not llm_configured():
+        raise RuntimeError("大模型 API 尚未配置")
+    provider = cfg["provider"]
+    model = (model or cfg["model"]).strip()
 
     schema = {
         "type": "object",
@@ -186,6 +299,16 @@ def analyze_papers_with_llm(
         "papers": papers,
     }
 
+    output_format = {
+        "type": "json_schema",
+        "name": "paper_recommendation_analysis",
+        "schema": schema,
+    }
+    # OpenAI accepts strict structured output. DeepSeek's Responses API
+    # supports json_schema but its documented shape omits this extra field.
+    if provider == "openai":
+        output_format["strict"] = True
+
     payload = {
         "model": model,
         "instructions": instructions,
@@ -193,31 +316,29 @@ def analyze_papers_with_llm(
         "reasoning": {"effort": "low"},
         "text": {
             "verbosity": "low",
-            "format": {
-                "type": "json_schema",
-                "name": "paper_recommendation_analysis",
-                "schema": schema,
-                "strict": True,
-            },
+            "format": output_format,
         },
         "max_output_tokens": 6500,
-        "store": False,
-        "truncation": "auto",
     }
+    if provider == "openai":
+        payload["store"] = False
+        payload["truncation"] = "auto"
 
     response = requests.post(
-        f"{OPENAI_BASE_URL}/responses",
+        f"{cfg['base_url']}/responses",
         headers=_headers(),
         json=payload,
         timeout=timeout,
     )
     if not response.ok:
-        detail = response.text[:1000]
-        raise RuntimeError(f"OpenAI API request failed ({response.status_code}): {detail}")
+        detail = response.text[:1200]
+        raise RuntimeError(
+            f"{configured_provider_name()} API request failed ({response.status_code}): {detail}"
+        )
     data = response.json()
     output_text = _extract_output_text(data)
     if not output_text:
-        raise RuntimeError("OpenAI API returned no output text")
+        raise RuntimeError(f"{configured_provider_name()} API returned no output text")
     parsed = json.loads(output_text)
     return parsed.get("papers") or []
 
@@ -276,14 +397,21 @@ def merge_ai_analysis(
         out.at[pos, "ai_research_connection"] = str(item.get("research_connection") or "")
         out.at[pos, "ai_novelty_or_value"] = str(item.get("novelty_or_value") or "")
         out.at[pos, "ai_confidence"] = str(item.get("confidence") or "")
-        out.at[pos, "hybrid_score"] = round((1.0 - weight) * float(base_norm.iloc[pos]) + weight * ai_score, 3)
+        out.at[pos, "hybrid_score"] = round(
+            (1.0 - weight) * float(base_norm.iloc[pos]) + weight * ai_score,
+            3,
+        )
         analyzed_positions.append(pos)
 
     if not analyzed_positions:
         return out
 
     analyzed = out.iloc[:top_n].copy()
-    analyzed["_hybrid_sort"] = pd.to_numeric(analyzed["hybrid_score"], errors="coerce").fillna(-1)
-    analyzed = analyzed.sort_values(["_hybrid_sort", "score"], ascending=[False, False]).drop(columns=["_hybrid_sort"])
+    analyzed["_hybrid_sort"] = pd.to_numeric(
+        analyzed["hybrid_score"], errors="coerce"
+    ).fillna(-1)
+    analyzed = analyzed.sort_values(
+        ["_hybrid_sort", "score"], ascending=[False, False]
+    ).drop(columns=["_hybrid_sort"])
     remaining = out.iloc[top_n:].copy()
     return pd.concat([analyzed, remaining], ignore_index=True)
