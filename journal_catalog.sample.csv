@@ -1,7 +1,107 @@
 journal,issn,catalog,weight
-Production and Operations Management,1059-1478,OM示例目录,1.3
-Management Science,0025-1909,管理科学示例目录,1.4
-European Journal of Operational Research,0377-2217,OR/MCDA示例目录,1.3
-Omega,0305-0483,OR/管理示例目录,1.3
-Decision Support Systems,0167-9236,信息系统/决策示例目录,1.2
-Information Sciences,0020-0255,AI/决策示例目录,1.1
+Artificial Intelligence,0004-3702,AI,1.5
+Pattern Recognition,0031-3203,AI,2.0
+Pattern Recognition Letters,0167-8655,AI,1.5
+Neurocomputing,0925-2312,AI,2.0
+Neural Networks,0893-6080,AI,2.0
+Data Mining & Knowledge Discovery,1384-5810,AI,1.5
+IEEE Transactions on Artificial Intelligence,2691-4581,AI,2.0
+IEEE Transactions on Knowledge and Data Engineering,1041-4347,AI,2.0
+IEEE Transactions on Neural Networks and Learning Systems,2162-237X,AI,2.0
+IEEE Transactions on Pattern Analysis and Machine Intelligence,0162-8828,AI,2.0
+IEEE Transactions on Big Data,2332-7790,AI,2.0
+INFORMS Journal on Computing,1091-9856,AI,2.0
+ACM Transactions on Intelligent Systems and Technology,2157-6904,AI,1.3
+ACM Transactions on Knowledge Discovery from Data,1556-4681,AI,1.3
+ACM Transactions on the Web,1559-1131,AI,1.3
+ACM Transactions on Recommender Systems,2770-6699,AI,1.3
+International Journal of Production Economics,0925-5273,OM,2.0
+Manufacturing & Service Operations Management,1523-4614,OM,2.0
+Production and Operations Management,1059-1478,OM,2.0
+International Journal of Production Research,0020-7543,OM,2.0
+Computers & Operations Research,0305-0548,OR/MCDA,2.0
+European Journal of Operational Research,0377-2217,OR/MCDA,2.0
+Omega,0305-0483,OR/MCDA,2.0
+Annals of Operations Research,0254-5330,OR/MCDA,2.0
+Fuzzy Optimization and Decision Making,1568-4539,OR/MCDA,2.0
+Group Decision and Negotiation,0926-2644,OR/MCDA,2.0
+OR Spectrum,0171-6468,OR/MCDA,2.0
+IEEE Transactions on Evolutionary Computation,1089-778X,OR/MCDA,2.0
+Operations Research,0030-364X,OR/MCDA,2.0
+Decision Analysis,1545-8490,OR/MCDA,2.0
+International Transactions in Operational Research,0969-6016,OR/MCDA,1.0
+Journal of Multi-Criteria Decision Analysis,1057-9214,OR/MCDA,1.0
+Naval Research Logistics,0894-069X,OR/MCDA,1.0
+Decision Sciences Journal,0011-7315,OR/MCDA,1.0
+Journal of the Operational Research Society,0160-5682,OR/MCDA,2.0
+Computers & Industrial Engineering,0360-8352,工业工程,2.0
+Reliability Engineering & System Safety,0951-8320,工业工程,1.5
+Engineering Management,2095-7513,工业工程,1.5
+IEEE Transactions on Reliability,0018-9529,工业工程,1.5
+IEEE Transactions on Engineering Management,0018-9391,工业工程,2.0
+Risk Analysis,0272-4332,工业工程,2.0
+Quality and Reliability Engineering International,0748-8017,工业工程,1.5
+IISE Transactions,2472-5854,工业工程,2.0
+Fuzzy Sets and Systems,0165-0114,计算智能,1.5
+International Journal of Approximate Reasoning,0888-613X,计算智能,1.5
+IEEE Transactions on Fuzzy Systems,1063-6706,计算智能,2.0
+IEEE Transactions on Emerging Topics in Computational Intelligence,2471-285X,计算智能,2.0
+Transportation Research Part A: Policy and Practice,0965-8564,交通,1.3
+"Transportation Research, Part B: Methodological",0191-2615,交通,1.3
+"Transportation Research, Part D: Transport and Environment",1361-9209,交通,1.3
+"Transportation Research, Part E: Logistics and Transportation Review",1366-5545,交通,1.3
+Transportation Science,0041-1655,交通,1.3
+Tourism Management,0261-5177,旅游,2.0
+Annals of Tourism Research,0160-7383,旅游,2.0
+International Journal of Hospitality Management,0278-4319,旅游,1.5
+Journal of Hospitality and Tourism Management,1447-6770,旅游,1.5
+Tourism Management Perspectives,2211-9736,旅游,1.5
+Journal of Travel Research,0047-2875,旅游,2.0
+Journal of Service Research,1094-6705,旅游,2.0
+Journal of Hospitality & Tourism Research,1096-3480,旅游,1.5
+Tourism and Hospitality Research,1467-3584,旅游,1.5
+Information Technology & Tourism,1098-3058,旅游,1.5
+International Journal of Contemporary Hospitality Management,0959-6119,旅游,1.5
+International Journal of Tourism Research,1099-2340,旅游,1.5
+Current Issues in Tourism,1368-3500,旅游,1.5
+Asia Pacific Journal of Tourism Research,1094-1665,旅游,1.5
+Journal of Travel & Tourism Marketing,1054-8408,旅游,1.5
+Journal of Systems Science and Systems Engineering,1004-3756,系统科学与系统工程,1.3
+Journal of Systems Science and Complexity,1009-6124,系统科学与系统工程,1.3
+"IEEE Transactions on Systems, Man, and Cybernetics: Systems",2168-2216,系统科学与系统工程,2.0
+IEEE Transactions on Cybernetics,2168-2267,系统科学与系统工程,2.0
+IEEE Transactions on Computational Social Systems,2329-924X,系统科学与系统工程,2.0
+Decision Support Systems,0167-9236,信息系统与营销,1.5
+Information & Management,0378-7206,信息系统与营销,1.5
+Information Systems,0306-4379,信息系统与营销,1.5
+Journal of Retailing and Consumer Services,0969-6989,信息系统与营销,1.5
+Computers in Human Behavior,0747-5632,信息系统与营销,1.3
+Information Systems Frontiers,1387-3326,信息系统与营销,1.5
+Information Systems Research,1047-7047,信息系统与营销,1.5
+Marketing Science,0732-2399,信息系统与营销,2.0
+Journal of Marketing Research(JMR),0022-2437,信息系统与营销,2.0
+Journal of Consumer Research,0093-5301,信息系统与营销,2.0
+Management Information Systems Quarterly,0276-7783,信息系统与营销,2.0
+Journal of the Association for Information Systems,1536-9323,信息系统与营销,1.5
+Journal of Management Information Systems,0742-1222,信息系统与营销,1.5
+ACM Transactions on Management Information Systems,2158-656X,信息系统与营销,1.5
+ACM Transactions on Information Systems,1046-8188,信息系统与营销,1.5
+Information Systems Journal,1350-1917,信息系统与营销,2.0
+Journal of the Association for Information Science and Technology,2330-1635,信息系统与营销,2.0
+European Journal of Information Systems,0960-085X,信息系统与营销,1.5
+Information Technology and People,0959-3845,信息系统与营销,1.5
+Internet Research,1066-2243,信息系统与营销,1.5
+Journal of Business Research,0148-2963,综合,1.3
+Applied Soft Computing,1568-4946,综合,1.3
+Expert Systems with Applications,0957-4174,综合,1.5
+Information Fusion,1566-2535,综合,2.0
+Information Sciences,0020-0255,综合,2.0
+Knowledge-Based Systems,0950-7051,综合,1.5
+Engineering Applications of Artificial Intelligence,0952-1976,综合,1.5
+Journal of Management Science and Engineering,2096-2320,综合,1.5
+Information Processing & Management,0306-4573,综合,1.5
+Nature Computational Science,2662-8457,综合,2.0
+Nature Machine Intelligence,2522-5839,综合,2.0
+npj Artificial Intelligence,2948-2089,综合,2.0
+Management Science,0025-1909,综合,2.0
+ACM Computing Surveys,0360-0300,综合,1.5
