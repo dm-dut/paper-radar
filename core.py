@@ -13,6 +13,7 @@ import pandas as pd
 import requests
 
 CROSSREF_BASE = "https://api.crossref.org"
+DEFAULT_RECALL_TIERS = {"core", "emerging", "cross"}
 
 
 @dataclass
@@ -57,10 +58,32 @@ def parse_keywords(text: str) -> List[Keyword]:
     return out
 
 
+def _recall_tiers(profile: Optional[dict]) -> set:
+    if not profile:
+        return set(DEFAULT_RECALL_TIERS)
+    configured = (profile.get("settings") or {}).get("recall_tiers")
+    if isinstance(configured, list) and configured:
+        return {str(x).strip() for x in configured if str(x).strip()}
+    return set(DEFAULT_RECALL_TIERS)
+
+
+def _theme_used_for_recall(theme: dict, profile: Optional[dict]) -> bool:
+    return str(theme.get("tier", "cross")) in _recall_tiers(profile)
+
+
 def profile_keywords(profile: dict) -> List[Keyword]:
+    """Return only keywords that are allowed to drive first-stage retrieval.
+
+    Method/application themes are intentionally kept in the research profile for
+    contextual AI analysis, but they do not independently recall papers. This
+    prevents broad terms such as machine learning, forecasting or uncertainty
+    from flooding the recommendation list.
+    """
     seen: Dict[str, float] = {}
     originals: Dict[str, str] = {}
     for theme in profile.get("themes") or []:
+        if not _theme_used_for_recall(theme, profile):
+            continue
         theme_weight = float(theme.get("weight", 1.0) or 1.0)
         for item in theme.get("keywords") or []:
             if isinstance(item, str):
@@ -202,6 +225,8 @@ def _profile_hits(title: str, abstract: str, profile: Optional[dict]) -> List[di
     if not profile:
         return hits
     for theme in profile.get("themes") or []:
+        if not _theme_used_for_recall(theme, profile):
+            continue
         theme_weight = float(theme.get("weight", 1.0) or 1.0)
         terms, score = [], 0.0
         for item in theme.get("keywords") or []:
@@ -246,7 +271,9 @@ def semantic_theme_matches(df: pd.DataFrame, profile: Optional[dict], threshold:
     except Exception:
         return {}
 
-    themes = profile.get("themes") or []
+    themes = [t for t in (profile.get("themes") or []) if _theme_used_for_recall(t, profile)]
+    if not themes:
+        return {}
     theme_docs = [_theme_document(t) for t in themes]
     paper_docs = [
         f"{safe_text(r.get('title'))}. {safe_text(r.get('title'))}. {safe_text(r.get('abstract'))[:6000]} {safe_text(r.get('journal'))}"
